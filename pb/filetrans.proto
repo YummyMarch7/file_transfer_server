@@ -1,0 +1,21 @@
+syntax = "proto3";
+option go_package = "file_transfer_server.pb";
+package file_trans.file;
+
+service FileTrans {
+  rpc DirList(Path) returns (Item) {}
+}
+
+message Path {
+  string path = 1;
+  int32 depth = 2;
+}
+
+message Item {
+  bool is_file = 1;
+  bool is_err = 2;
+  string name = 3;
+  uint64 size = 4;
+  repeated Item sub_dir = 5;
+  repeated Item files = 6;
+}
