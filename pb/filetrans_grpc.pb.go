@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v4.23.4
-// source: pb/filetrans.proto
+// source: filetrans.proto
 
 package file_transfer_server_pb
 
@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FileTransClient interface {
 	DirList(ctx context.Context, in *Path, opts ...grpc.CallOption) (*Item, error)
+	FileDownload(ctx context.Context, in *Item, opts ...grpc.CallOption) (FileTrans_FileDownloadClient, error)
 }
 
 type fileTransClient struct {
@@ -42,11 +43,44 @@ func (c *fileTransClient) DirList(ctx context.Context, in *Path, opts ...grpc.Ca
 	return out, nil
 }
 
+func (c *fileTransClient) FileDownload(ctx context.Context, in *Item, opts ...grpc.CallOption) (FileTrans_FileDownloadClient, error) {
+	stream, err := c.cc.NewStream(ctx, &FileTrans_ServiceDesc.Streams[0], "/file_trans.file.FileTrans/FileDownload", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &fileTransFileDownloadClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type FileTrans_FileDownloadClient interface {
+	Recv() (*FileBlockRespond, error)
+	grpc.ClientStream
+}
+
+type fileTransFileDownloadClient struct {
+	grpc.ClientStream
+}
+
+func (x *fileTransFileDownloadClient) Recv() (*FileBlockRespond, error) {
+	m := new(FileBlockRespond)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // FileTransServer is the server API for FileTrans service.
 // All implementations must embed UnimplementedFileTransServer
 // for forward compatibility
 type FileTransServer interface {
 	DirList(context.Context, *Path) (*Item, error)
+	FileDownload(*Item, FileTrans_FileDownloadServer) error
 	mustEmbedUnimplementedFileTransServer()
 }
 
@@ -56,6 +90,9 @@ type UnimplementedFileTransServer struct {
 
 func (UnimplementedFileTransServer) DirList(context.Context, *Path) (*Item, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DirList not implemented")
+}
+func (UnimplementedFileTransServer) FileDownload(*Item, FileTrans_FileDownloadServer) error {
+	return status.Errorf(codes.Unimplemented, "method FileDownload not implemented")
 }
 func (UnimplementedFileTransServer) mustEmbedUnimplementedFileTransServer() {}
 
@@ -88,6 +125,27 @@ func _FileTrans_DirList_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FileTrans_FileDownload_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Item)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(FileTransServer).FileDownload(m, &fileTransFileDownloadServer{stream})
+}
+
+type FileTrans_FileDownloadServer interface {
+	Send(*FileBlockRespond) error
+	grpc.ServerStream
+}
+
+type fileTransFileDownloadServer struct {
+	grpc.ServerStream
+}
+
+func (x *fileTransFileDownloadServer) Send(m *FileBlockRespond) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // FileTrans_ServiceDesc is the grpc.ServiceDesc for FileTrans service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -100,6 +158,12 @@ var FileTrans_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _FileTrans_DirList_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "pb/filetrans.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "FileDownload",
+			Handler:       _FileTrans_FileDownload_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "filetrans.proto",
 }

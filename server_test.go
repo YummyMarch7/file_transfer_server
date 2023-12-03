@@ -6,6 +6,9 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"io"
+	"log"
+	"os"
 )
 import "testing"
 
@@ -29,4 +32,37 @@ func TestMain(m *testing.M) {
 		fmt.Println("Dir List error")
 	}
 	fmt.Println(dirList)
+
+	f, e := os.Create("testfile.bin")
+	if e != nil {
+		fmt.Println(e)
+	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(f)
+	for _, v := range dirList.Files {
+		if v.Name == "passwd" {
+			stream, err := client.FileDownload(context.Background(), v)
+			if err != nil {
+				fmt.Println(err)
+			}
+			for {
+				fileBlock, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					log.Fatalf("%v.ListFeatures(_) = _, %v", client, err)
+				}
+				_, err = f.Write(fileBlock.BlockData)
+				if err != nil {
+					return
+				}
+				log.Println(string(fileBlock.BlockData))
+			}
+		}
+	}
 }

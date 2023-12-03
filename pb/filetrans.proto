@@ -4,6 +4,7 @@ package file_trans.file;
 
 service FileTrans {
   rpc DirList(Path) returns (Item) {}
+  rpc FileDownload(Item) returns (stream FileBlockRespond) {}
 }
 
 message Path {
@@ -16,6 +17,26 @@ message Item {
   bool is_err = 2;
   string name = 3;
   uint64 size = 4;
-  repeated Item sub_dir = 5;
-  repeated Item files = 6;
+  string full_path = 5;
+  repeated Item sub_dir = 6;
+  repeated Item files = 7;
+}
+
+message FileBlockPosition {
+  uint32 offset_start = 1;
+  uint32 length = 2;
+}
+
+message FileBlockRequest {
+  string name = 1;
+  string full_path = 2;
+  repeated FileBlockPosition position_list = 3;
+}
+
+message FileBlockRespond {
+  string name = 1;  // file name
+  string full_path = 2;  // file full path on server
+  FileBlockPosition position = 3;
+  bytes block_data = 4;
+  uint32 checksum = 5;
 }
